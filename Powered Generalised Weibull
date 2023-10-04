@@ -1,0 +1,139 @@
+#------------------------------------------------------------------------------
+# Fonctions de survie / taux instantané / taux cumulé
+# de la distribution Powered Generalised Weibull
+#------------------------------------------------------------------------------
+
+# PGW Survival Function
+spgw <- function(t, sigma, nu, gamma, log.p = FALSE){ # sous la forme de log si log.p = TRUE sinon expoentiel
+  val <- 1 - ( 1 + (t/sigma)^nu )^(1/gamma)
+  if(log.p) return(val) else return(exp(val))
+}
+
+# PGW Hazard Function
+hpgw <- function(t, sigma, nu, gamma, log = FALSE){  #sous la forme du log si log = TRUE sinon exponentiel
+  val <- log(nu) - log(gamma) - nu*log(sigma) + (nu-1)*log(t) + 
+    (1/gamma - 1)*log( 1 + (t/sigma)^nu )
+  if(log) return(val) else return(exp(val)) 
+}
+
+# PGW Cumulative Hazard Function
+chpgw <- function(t, sigma, nu, gamma){
+  val <- -1 + ( 1 + (t/sigma)^nu )^(1/gamma)
+  return(val) 
+}
+
+#------------------------------------------------------------------------------
+# Excess Hazard Models: PGW baseline with GH structure
+# PGWGHMLE function. It returns the output from optim or nlminb
+#------------------------------------------------------------------------------
+
+# init    : initial point for optimisation step
+#           (log(scale), log(shape1), log(shape2), betaH, beta), 
+#           where beta is only required for PGWGH   
+# hstr    : hazard structure, PGW without covariates ("PGW"),
+#           PGW with AFT model (PGWAFT)
+#           PGW with PH model (PGWPH)
+#           PGW with AH model (PGWAH)
+#           PGW with GH model (PGWGH)
+# method  : optimisation method to be used in optim 
+# maxit   : maximum number of iterations in optim
+# times   : times to event
+# cens    : censoring indicators (TRUE or 1 = observed, FALSE  or 0 = censored)
+# rates   : expected population mortality hazard rates
+# des     : design matrix for proportional hazard effects 
+# des_t   : design matrix for time-dependent effects (it is recommended not to use splines here)
+
+
+# par=rep(0,13)
+# times=ovasansgroupe$tyears
+# cens=ovasansgroupe$d
+# hstr="PGWGH"
+# des = matsansgroupe
+# des_t=matsansgroupeTD
+# method="nlminb"
+# maxit=10000
+
+PGWMLE <- function(init, times, cens, hstr = "PGW", des = NULL, des_t = NULL, method = "Nelder-Mead", maxit = 100){
+  # Required variables
+  times <- as.vector(times)
+  cens <- as.vector(as.logical(cens))
+  times.obs <- times[cens]
+  if(!is.null(des))  des.obs <- des[cens,]
+  if(!is.null(des_t))  des_t.obs <- des_t[cens,]
+  
+  # PGW model
+  if(hstr == "PGW"){
+    log.likPGW <- function(par){
+      ae0 <- exp(par[1]); be0 <- exp(par[2]);  ce0 <- exp(par[3]);
+      haz0 <- hpgw(times.obs,ae0,be0,ce0)
+      val <- - sum(log(haz0)) + sum(chpgw(times,ae0,be0,ce0))
+      return(val)
+    }
+    if(method != "nlminb") OPTPGW <- optim(init,log.likPGW,control=list(maxit=maxit),method=method)
+    if(method == "nlminb") OPTPGW <- nlminb(init,log.likPGW,control=list(iter.max=maxit))
+    return(OPTPGW)
+  } 
+  # PH model  
+  if(hstr == "PGWPH"){
+    p <- dim(des)[2]
+    log.likPGWPH <- function(par){
+      ae0 <- exp(par[1]); be0 <- exp(par[2]);  ce0 <- exp(par[3]); beta0 <- par[4:(3+p)];
+      exp.x.beta <- as.vector(exp(des%*%beta0))
+      exp.x.beta.obs <- exp.x.beta[cens]
+      haz0 <- hpgw(times.obs,ae0,be0,ce0)*exp.x.beta.obs
+      val <- - sum(log(haz0)) + sum(chpgw(times,ae0,be0,ce0)*exp.x.beta)
+      return(val)
+    }
+    if(method != "nlminb") OPTPGWPH <- optim(init,log.likPGWPH,control=list(maxit=maxit), method = method)
+    if(method == "nlminb") OPTPGWPH <- nlminb(init,log.likPGWPH,control=list(iter.max=maxit))
+    return(OPTPGWPH)
+  } 
+  # AFT Model  
+  if(hstr == "PGWAFT"){
+    p <- dim(des)[2]
+    log.likPGWAFT <- function(par){
+      ae0 <- exp(par[1]); be0 <- exp(par[2]);  ce0 <- exp(par[3]); beta0 <- par[4:(3+p)];
+      exp.x.beta <- as.vector(exp(des%*%beta0))
+      exp.x.beta.obs <- exp.x.beta[cens]
+      haz0 <- hpgw(times.obs*exp.x.beta.obs,ae0,be0,ce0)*exp.x.beta.obs
+      val <- - sum(log(haz0)) + sum(chpgw(times*exp.x.beta,ae0,be0,ce0))
+      return(val)
+    }
+    if(method != "nlminb") OPTPGWAFT <- optim(init,log.likPGWAFT,control=list(maxit=maxit), method = method)
+    if(method == "nlminb") OPTPGWAFT <- nlminb(init,log.likPGWAFT,control=list(iter.max=maxit))
+    return(OPTPGWAFT)
+  }
+  # AH Model  
+  if(hstr == "PGWAH"){
+    log.likPGWAH <- function(par){
+      ae0 <- exp(par[1]); be0 <- exp(par[2]);  ce0 <- exp(par[3]); beta0 <- par[4:(3+p)];
+      exp.x.beta <- as.vector(exp(des_t%*%beta0))
+      exp.x.beta.obs <- exp.x.beta[cens]
+      haz0 <- hpgw(times.obs*exp.x.beta.obs,ae0,be0,ce0)
+      val <- - sum(log(haz0)) + sum(chpgw(times*exp.x.beta,ae0,be0,ce0)/exp.x.beta)
+      return(val)
+    }
+    if(method != "nlminb") OPTPGWAH <- optim(init,log.likPGWAH,control=list(maxit=maxit), method = method)
+    if(method == "nlminb") OPTPGWAH <- nlminb(init,log.likPGWAH,control=list(iter.max=maxit))
+    return(OPTPGWAH)    
+  }
+  # GH Model  
+  if(hstr == "PGWGH"){
+    p0 <- dim(des_t)[2]
+    p1 <- dim(des)[2]
+    log.likPGWGH <- function(par){
+      ae0 <- exp(par[1]); be0 <- exp(par[2]);  ce0 <- exp(par[3]); beta0 <- par[4:(3+p0)]; beta1 <- par[(4+p0):(3+p0+p1)]
+      exp.x.beta0 <- as.vector(exp(des_t%*%beta0))
+      exp.x.beta1 <- as.vector(exp(des%*%beta1))
+      exp.x.beta.dif <- as.vector(exp( des%*%beta1 - des_t%*%beta0 ))
+      exp.x.beta0.obs <- exp.x.beta0[cens]
+      exp.x.beta1.obs <- exp.x.beta1[cens]
+      haz0 <- hpgw(times.obs*exp.x.beta0.obs,ae0,be0,ce0)*exp.x.beta1.obs
+      val <- - sum(log(haz0)) + sum(chpgw(times*exp.x.beta0,ae0,be0,ce0)*exp.x.beta.dif)
+      return(sum(val))
+    }
+    if(method != "nlminb") OPTPGWGH <- optim(init,log.likPGWGH,control=list(maxit=maxit), method = method)
+    if(method == "nlminb") OPTPGWGH <- nlminb(init,log.likPGWGH,control=list(iter.max=maxit))
+    return(OPTPGWGH) 
+  }
+}
