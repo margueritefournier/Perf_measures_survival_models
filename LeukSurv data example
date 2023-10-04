@@ -286,7 +286,7 @@ legend("topright",legend=c("Cox model","Bspline-based model","General model"),co
 #              AUC cumulative dynamic
 ######################################################################################
 KMreverse$surv <-  censcox[,1]
-
+myt=unique(LeukSurv$time2)
 
 
 
@@ -296,18 +296,13 @@ KMreverse$surv <-  censcox[,1]
 #
 # ************************************************
 
-
 AUC.Cox<- rep(NA,length(myt))
-
-model.cox <- coxph(formula = Surv(time=timeY , event=cens) ~ age + sex + wbc + tpi,data=LeukSurv)
-pred1 <- survfit(model.cox, newdata=data.frame(age = LeukSurv$age,sex=LeukSurv$sex, wbc=LeukSurv$wbc,tpi=LeukSurv$tpi), 
-                 conf.type="log-log")
 
 for (t in myt){
   
-  predict.all <- 1-pred1$surv[which(t==myt),]
+  predict.all <- 1-sfcoxSurv[which(t==myt),]
   
-  ScZ.all <- summary(KMreverse,times=LeukSurv$timeY)$surv
+  ScZ.all <- summary(KMreverse,times=LeukSurv$time2)$surv
   Sct <- summary(KMreverse,times=t)$surv
   
   # Initialize AUCnumerator to zero
@@ -315,8 +310,8 @@ for (t in myt){
   
   for (i in 1:nrow(LeukSurv)) {
     
-    I1=(LeukSurv$timeY[i]<= t)
-    I2=(LeukSurv$timeY > t)
+    I1=(LeukSurv$time2[i]<= t)
+    I2=(LeukSurv$time2 > t)
     
     predictI <- predict.all[i]
     predictJ <- predict.all
@@ -339,7 +334,7 @@ for (t in myt){
   # AUCnumerator
   
   #Dénominateur de l'AUC
-  KM <- survfit(Surv(timeY, cens)~1, data=LeukSurv) #KM
+  KM <- survfit(Surv(time2, cens)~1, data=LeukSurv) #KM
   St <- summary(KM,times=t)$surv
   
   AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
@@ -350,9 +345,12 @@ for (t in myt){
 }
 
 
-
+# ************************************************
+#
+#   B-Spline MODEL
+#
+# ************************************************
 # AUC numerator
-myt=unique(LeukSurv$time2)
 AUC.BS<- rep(NA,length(myt))
 
 for (t in myt){
@@ -411,41 +409,15 @@ plot(myt, AUC.BS, type="l")
 # GH MODEL
 #
 # ************************************************
-# Matrice de design
-X <- model.matrix(Surv(time=timeY, event=cens) ~ age + sex + wbc + tpi,data=LeukSurv)[,-1]
-dim(X)
-XTD <- as.matrix(model.matrix(Surv(time=timeY, event=cens) ~ age,data=LeukSurv)[,-1])
-mod_gen <- PGWMLE(rep(0, 3 + ncol(X) + ncol(XTD)),LeukSurv$timeY,LeukSurv$cens, hstr = "PGWGH", des = X,des_t=XTD, method="nlminb",maxit=10000)
-
-# Récupération des coefs :
-n <- length(LeukSurv$timeY)
-p0 <- dim(XTD)[2]
-p1 <- dim(X)[2]
-coef <- mod_gen$par
-ae0 <- exp(coef[1]); be0 <- exp(coef[2]);  ce0 <- exp(coef[3])
-beta0 <- coef[4:(3+p0)]
-beta1 <- coef[(4+p0):(3+p0+p1)]
-
-exp.x.beta0 <- as.vector(exp(XTD%*%beta0))
-exp.x.beta1 <- as.vector(exp(X%*%beta1))
-exp.x.beta.dif <- as.vector(exp(X%*%beta1 - XTD%*%beta0))
-
-sfGH <- vector()
-predGH <- vector()
-for(i in 1:nrow(LeukSurv)){
-  predGH <- exp(-(chpgw(myt*exp.x.beta0[i],ae0,be0,ce0)*exp.x.beta.dif[i]))
-  sfGH <- cbind(sfGH,predGH)
-}
-
+sfGH
 
 
 AUC.GH<- rep(NA,length(myt))
-# t <- myt[80]
 for (t in myt){
   
   predict.all <- 1-sfGH[which(t==myt),]
   
-  ScZ.all <- summary(KMreverse,times=LeukSurv$timeY)$surv
+  ScZ.all <- summary(KMreverse,times=LeukSurv$time2)$surv
   Sct <- summary(KMreverse,times=t)$surv
   
   # Initialize AUCnumerator to zero
@@ -453,8 +425,8 @@ for (t in myt){
   
   for (i in 1:nrow(LeukSurv)) {
     
-    I1=(LeukSurv$timeY[i]<= t)
-    I2=(LeukSurv$timeY > t)
+    I1=(LeukSurv$time2[i]<= t)
+    I2=(LeukSurv$time2 > t)
     
     predictI <- predict.all[i]
     predictJ <- predict.all
@@ -477,7 +449,7 @@ for (t in myt){
   # AUCnumerator
   
   #Dénominateur de l'AUC
-  KM <- survfit(Surv(timeY, cens)~1, data=LeukSurv) #KM
+  KM <- survfit(Surv(time2, cens)~1, data=LeukSurv) #KM
   St <- summary(KM,times=t)$surv
   
   AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
@@ -487,7 +459,7 @@ for (t in myt){
   
 }
 
-tiff(filename = "AUCcd.tif",width = 800, height = 800)
+
 par(mfrow=c(1,1))
 plot(0,0,col="white",ylab="AUC(t)",xlab="Time (years)",xlim=c(0,8),ylim=c(0.5,1), cex.lab=1.5,cex.axis=1.5,
      cex.main=1.5,panel.first=abline(v=seq(0,8,by=0.5), h=seq(0,1,by=0.1), lty=8, col="grey"))
@@ -496,7 +468,7 @@ lines(myt, AUC.BS, type="l", lty=2 )
 lines(myt, AUC.GH, type="l", lty = 4)
 legend("topleft",legend=c("Cox model","Bspline model","GH model"),lty=c(1,2,4))
 
-dev.off()
+
 
 
 
