@@ -1,0 +1,37 @@
+#------------------------------------------------------------------------------
+#      Adaptation de la fonction CINDEX
+#------------------------------------------------------------------------------
+# statut : vecteur indicateur de censure (1 : non censuré, 0 : censuré)
+# time : vecteur de temps jusqu'à la survenue de l'évènement
+# predicts : vecteur de taux relatifs ou taux instantanés prédits par le modèle de survie
+
+cindexglobal<- function (time,status,predicts) 
+{
+  # meme pour l'objet mexhaz, on va construire un modèle de Cox pour récupérer les observés
+  df<-data.frame(time,status)
+  time <- df$time #temps
+  status <- df$status	#statut
+  x <- predicts #recupère les prédicteurs linéaires(predits)
+  n <- length(time) # longueur du temps
+  ord <- order(time, -status) #récupère l'ordre croissant du temps
+  time <- time[ord] #range le temps dans l'ordre croissant 
+  status <- status[ord] # range le statut dans l'ordre croissant 
+  x <- x[ord]  #range les predicteurs linéaires dans l'ordre croissant 
+  #toujours pas de prédicteurs linéaires ... 
+  wh <- which(status == 1) # ne garde que les individus avec un statut de 1 (non censuré)
+  total <- concordant <- 0
+  for (i in wh) {
+    for (j in ((i + 1):n)) { # compare à tous les individus qui on un temps supérieur à celui de i
+      if(!is.na(time[j])){ # rajout de cette condition
+        if (time[j] > time[i]) {
+          total <- total + 1
+          if (x[j] < x[i])  # ceux qui ont un temps plus grand devrait avoir un taux relatif plus faible
+            concordant <- concordant + 1
+          if (x[j] == x[i]) 
+            concordant <- concordant + 0.5
+        }
+      }
+    }
+  }
+  return(list(concordant = concordant, total = total, cindex = concordant/total))
+}
