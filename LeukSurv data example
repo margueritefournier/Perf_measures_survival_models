@@ -4,7 +4,7 @@ library(dynpred)
 library(stats)
 library(mexhaz)
 library(spBayesSurv)
-
+library(dplyr)
 
 #------------------------------------------------------------------------------
 # Dataset - LeukSurv from  
@@ -24,12 +24,13 @@ LeukSurv$TH8 <- ifelse(LeukSurv$time2<=8 & LeukSurv$cens==1,1,ifelse(LeukSurv$ti
 
 LeukSurv$time10 <- ifelse(LeukSurv$time2 > 10, 10 ,LeukSurv$time2 )
 LeukSurv$cens10 <- ifelse(LeukSurv$time2 > 10, 0 ,LeukSurv$cens )
+LeukSurv$censored <- 1- LeukSurv$cens
 
 LeukSurv$agecr <- scale(LeukSurv$age)
 LeukSurv$wbccr <- scale(LeukSurv$wbc)
 LeukSurv$tpicr <- scale(LeukSurv$tpi)
 
-# UTILE ????
+# UTILE ???? a voir si il faut supprimer
 Stime = LeukSurv$time2
 status = LeukSurv$cens
 utimes = unique(Stime)
@@ -244,3 +245,277 @@ names(pred8GH)<-c(1:length(pred8GH))
 pred8GH_sort <-sort(pred8GH)
 quantileGH8y<-quantile(pred8GH_sort,probs = seq(0.1,1,0.1))
 calibGH8y <-calibQuantile(quantileGH8y,vecpred=pred8GH_sort,vecobs=LeukSurv$TH8)
+
+
+
+
+
+######################################################################################
+#               BRIER SCORE
+######################################################################################
+# Censoring matrix (Inverse proobability weighting)
+coxcens <- coxph(Surv(time2, 1-cens) ~ 1,data = LeukSurv) 
+ycens  <- coxcens[["y"]]
+pgroupe <- ncol(ycens)
+tcens <- ycens[, pgroupe - 1]
+dcens <- ycens[, pgroupe]
+xcens  <- coxcens$linear.predictors
+coxcens  <- coxph(Surv(tcens , dcens ) ~ xcens)
+
+sfcens  <- survfit(coxcens, newdata = data.frame(x = xcens ), type = "kalbfl")
+tcens  <- sfcens$time
+censcox <- sfcens$surv
+
+bsCOX <-BrierScore(LeukSurv$time2, LeukSurv$cens, sfcoxTime, sfcoxSurv, tcens, censcox, sort(unique(LeukSurv$time10)),N=length(sfcoxTime))
+bsBS <-BrierScore(LeukSurv$time2, LeukSurv$cens, sfbsTime, sfBS, tcens, censcox, sort(unique(LeukSurv$time10)),N=length(sfbsTime))
+bsGEN <-BrierScore(LeukSurv$time2, LeukSurv$cens, tsurvGH, sfGH, tcens, censcox, sort(unique(LeukSurv$time10)),N=length(tsurvGH))
+
+#plot
+plot(0,0,col="white",xlab="Time",ylab="BS(t)",xlim=c(0,8),ylim=c(0,0.3), cex.lab=1.5,cex.axis=1.5,
+     cex.main=1.5,panel.first=abline(v=seq(0,8,by=0.5), h=seq(0,0.3,by=0.01), lty=8, col="grey"))
+lines(bsCOX[,1],bsCOX[,2],col="black",type="s",lty=1)
+lines(bsBS[,1],bsBS[,2],col="black",type="s",lty=2)
+lines(bsGEN[,1],bsGEN[,2],col="black",type="s",lty=4)
+
+legend("topright",legend=c("Cox model","Bspline-based model","General model"),col="black",lty=c(1,2,4))
+
+
+
+
+######################################################################################
+#              AUC cumulative dynamic
+######################################################################################
+KMreverse$surv <-  censcox[,1]
+
+
+
+
+# ************************************************
+#
+# COX MODEL
+#
+# ************************************************
+
+
+AUC.Cox<- rep(NA,length(myt))
+
+model.cox <- coxph(formula = Surv(time=timeY , event=cens) ~ age + sex + wbc + tpi,data=LeukSurv)
+pred1 <- survfit(model.cox, newdata=data.frame(age = LeukSurv$age,sex=LeukSurv$sex, wbc=LeukSurv$wbc,tpi=LeukSurv$tpi), 
+                 conf.type="log-log")
+
+for (t in myt){
+  
+  predict.all <- 1-pred1$surv[which(t==myt),]
+  
+  ScZ.all <- summary(KMreverse,times=LeukSurv$timeY)$surv
+  Sct <- summary(KMreverse,times=t)$surv
+  
+  # Initialize AUCnumerator to zero
+  AUCnumerator <- 0
+  
+  for (i in 1:nrow(LeukSurv)) {
+    
+    I1=(LeukSurv$timeY[i]<= t)
+    I2=(LeukSurv$timeY > t)
+    
+    predictI <- predict.all[i]
+    predictJ <- predict.all
+    I3=(predictI>predictJ)
+    
+    di <- LeukSurv$cens[i]
+    
+    ScZi <- ScZ.all[i]
+    
+    # print(I1*I2*I3*di*(1/(ScZi*Sct)))
+    if (i < nrow(LeukSurv)) {
+      AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct))) # print(AUCij)
+      AUCnumerator <- sum(AUCnumerator, AUCij)}
+    
+    if (i == nrow(LeukSurv) & (ScZi*Sct)==0) {AUCij = sum(I1*I2*I3*di*0); AUCnumerator <- sum(AUCnumerator, AUCij)}
+    if (i == nrow(LeukSurv) & (ScZi*Sct)>0) {AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct)));AUCnumerator <- sum(AUCnumerator, AUCij)}
+    # print(AUCij)
+  }
+  
+  # AUCnumerator
+  
+  #Dénominateur de l'AUC
+  KM <- survfit(Surv(timeY, cens)~1, data=LeukSurv) #KM
+  St <- summary(KM,times=t)$surv
+  
+  AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
+  
+  
+  AUC.Cox[which(t==myt)] <- AUCnumerator/AUCdenom
+  
+}
+
+
+
+# AUC numerator
+myt=unique(LeukSurv$time2)
+AUC.BS<- rep(NA,length(myt))
+
+for (t in myt){
+
+predict.all <- 1-predict(bsfit, time.pts= t, data.val = data.frame(age = LeukSurv$agecr,sex=LeukSurv$sex, wbc=LeukSurv$wbccr,tpi=LeukSurv$tpicr))$results$surv
+ScZ.all <- summary(KMreverse,times=LeukSurv$time2)$surv
+Sct <- summary(KMreverse,times=t)$surv
+
+# Initialize AUCnumerator to zero
+AUCnumerator <- 0
+
+for (i in 1:nrow(LeukSurv)) {
+  
+I1=(LeukSurv$time2[i]<= t)
+I2=(LeukSurv$time2 > t)
+
+predictI <- predict.all[i]
+predictJ <- predict.all
+I3=(predictI>predictJ)
+
+di <- LeukSurv$cens[i]
+
+ScZi <- ScZ.all[i]
+
+# print(I1*I2*I3*di*(1/(ScZi*Sct)))
+if (i < nrow(LeukSurv)) {
+        AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct))) # print(AUCij)
+        AUCnumerator <- sum(AUCnumerator, AUCij)}
+
+if (i == nrow(LeukSurv) & (ScZi*Sct)==0) {AUCij = sum(I1*I2*I3*di*0); AUCnumerator <- sum(AUCnumerator, AUCij)}
+if (i == nrow(LeukSurv) & (ScZi*Sct)>0) {AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct)));AUCnumerator <- sum(AUCnumerator, AUCij)}
+# print(AUCij)
+   }
+
+# AUCnumerator
+
+# AUC denominator
+KM <- survfit(Surv(time2, cens)~1, data=LeukSurv) #KM
+St <- summary(KM,times=t)$surv
+
+AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
+
+
+AUC.BS[which(t==myt)] <- AUCnumerator/AUCdenom
+
+}
+
+plot(myt, AUC.BS, type="l")
+
+
+
+
+
+# ************************************************
+#
+# GH MODEL
+#
+# ************************************************
+# Matrice de design
+X <- model.matrix(Surv(time=timeY, event=cens) ~ age + sex + wbc + tpi,data=LeukSurv)[,-1]
+dim(X)
+XTD <- as.matrix(model.matrix(Surv(time=timeY, event=cens) ~ age,data=LeukSurv)[,-1])
+mod_gen <- PGWMLE(rep(0, 3 + ncol(X) + ncol(XTD)),LeukSurv$timeY,LeukSurv$cens, hstr = "PGWGH", des = X,des_t=XTD, method="nlminb",maxit=10000)
+
+# Récupération des coefs :
+n <- length(LeukSurv$timeY)
+p0 <- dim(XTD)[2]
+p1 <- dim(X)[2]
+coef <- mod_gen$par
+ae0 <- exp(coef[1]); be0 <- exp(coef[2]);  ce0 <- exp(coef[3])
+beta0 <- coef[4:(3+p0)]
+beta1 <- coef[(4+p0):(3+p0+p1)]
+
+exp.x.beta0 <- as.vector(exp(XTD%*%beta0))
+exp.x.beta1 <- as.vector(exp(X%*%beta1))
+exp.x.beta.dif <- as.vector(exp(X%*%beta1 - XTD%*%beta0))
+
+sfGH <- vector()
+predGH <- vector()
+for(i in 1:nrow(LeukSurv)){
+  predGH <- exp(-(chpgw(myt*exp.x.beta0[i],ae0,be0,ce0)*exp.x.beta.dif[i]))
+  sfGH <- cbind(sfGH,predGH)
+}
+
+
+
+AUC.GH<- rep(NA,length(myt))
+# t <- myt[80]
+for (t in myt){
+  
+  predict.all <- 1-sfGH[which(t==myt),]
+  
+  ScZ.all <- summary(KMreverse,times=LeukSurv$timeY)$surv
+  Sct <- summary(KMreverse,times=t)$surv
+  
+  # Initialize AUCnumerator to zero
+  AUCnumerator <- 0
+  
+  for (i in 1:nrow(LeukSurv)) {
+    
+    I1=(LeukSurv$timeY[i]<= t)
+    I2=(LeukSurv$timeY > t)
+    
+    predictI <- predict.all[i]
+    predictJ <- predict.all
+    I3=(predictI>predictJ)
+    
+    di <- LeukSurv$cens[i]
+    
+    ScZi <- ScZ.all[i]
+    
+    # print(I1*I2*I3*di*(1/(ScZi*Sct)))
+    if (i < nrow(LeukSurv)) {
+      AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct))) # print(AUCij)
+      AUCnumerator <- sum(AUCnumerator, AUCij)}
+    
+    if (i == nrow(LeukSurv) & (ScZi*Sct)==0) {AUCij = sum(I1*I2*I3*di*0); AUCnumerator <- sum(AUCnumerator, AUCij)}
+    if (i == nrow(LeukSurv) & (ScZi*Sct)>0) {AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct)));AUCnumerator <- sum(AUCnumerator, AUCij)}
+    # print(AUCij)
+  }
+  
+  # AUCnumerator
+  
+  #Dénominateur de l'AUC
+  KM <- survfit(Surv(timeY, cens)~1, data=LeukSurv) #KM
+  St <- summary(KM,times=t)$surv
+  
+  AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
+  
+  
+  AUC.GH[which(t==myt)] <- AUCnumerator/AUCdenom
+  
+}
+
+tiff(filename = "AUCcd.tif",width = 800, height = 800)
+par(mfrow=c(1,1))
+plot(0,0,col="white",ylab="AUC(t)",xlab="Time (years)",xlim=c(0,8),ylim=c(0.5,1), cex.lab=1.5,cex.axis=1.5,
+     cex.main=1.5,panel.first=abline(v=seq(0,8,by=0.5), h=seq(0,1,by=0.1), lty=8, col="grey"))
+lines(myt, AUC.Cox, type="l")
+lines(myt, AUC.BS, type="l", lty=2 )
+lines(myt, AUC.GH, type="l", lty = 4)
+legend("topleft",legend=c("Cox model","Bspline model","GH model"),lty=c(1,2,4))
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
