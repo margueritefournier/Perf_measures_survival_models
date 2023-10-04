@@ -49,11 +49,8 @@ coxfit1 <- coxph(Surv(time2,cens) ~ agecr + sex + wbccr + tpicr,data=LeukSurv)
 summary(coxfit1)
 
 coxzph<-cox.zph(coxph(Surv(time2,cens) ~ agecr + sex + wbccr + tpicr,data=LeukSurv))
-par(mfrow=c(2,3))
-plot(coxzph)
-par(mfrow=c(1,1))
 
-#------- avec indice pronostique -------# #Cette étape permet d'avoir les prédicteur linéaires à pour chaque patient et chaque temps
+#------- Pronostique index -------# 
 
 linpred <- LeukSurv$linpred <- coxfit1$linear.predictors
 coxfit1x <- coxph(Surv(LeukSurv$time2,LeukSurv$cens) ~ linpred)  
@@ -66,3 +63,85 @@ pred3ans<- -sfcoxSurv[indice,]
 
 TIgroupe <-predict(coxfit1,type="risk")
 TIgroupe3 <- TIgroupe
+
+
+#------------------------------------------------------------------------------
+# Bspline Model
+#------------------------------------------------------------------------------
+noeud <- median(LeukSurv$time2[LeukSurv$cens==1])
+
+bsfit <- mexhaz(formula = Surv(time=time2, event=cens) ~ agecr + sex + wbccr + tpicr + nph(agecr),data=LeukSurv, 
+                base = "exp.bs", degree = 3, knots=noeud )
+summary(bsfit)
+
+# plot of time dependent effect of age over time 
+toplot <- riskfunc(bsfit,
+         time.pts = seq(1,10,0.2),
+         data=  data.frame("agecr"=0.1,"sex"=0 , "wbccr"=0,  "tpicr"=0),
+         data.0 =  data.frame("agecr"=0 ,"sex"=0 , "wbccr"=0,  "tpicr"=0),
+         type="hr" ,
+         conf.int="delta")
+plot(toplot)
+
+# plot of baseline hazard over time : lambda0(t)
+haz0 = predict(bsfit, time.pts = utimes, data.val = data.frame("agecr"=0 ,"sex"=0 , "wbccr"=0,  "tpicr"=0),data=LeukSurv)$results$hazard
+plot(haz0~utimes, type="l")
+
+# Survival matrix
+sfBS <- vector()
+pred <- vector()
+for (i in 1:nrow(LeukSurv)) {
+  pred <- predict(bsfit, time.pts=utimes, data.val=data.frame(agecr=LeukSurv$agecr[i],sex=LeukSurv$sex[i],
+                                                                wbccr=LeukSurv$wbccr[i],tpicr=LeukSurv$tpicr[i]))$results$surv
+  sfBS<-cbind(sfBS,pred)
+}
+sfbsTime <- utimes
+
+# predict
+TIgroupe3 <- vector()
+for (j in 1:nrow(LeukSurv)) {
+  res <- -log(predict(bsfit, time.pts=3,  
+                      data.val=data.frame(agecr=LeukSurv$agecr[j],sex=LeukSurv$sex[j],
+                                          wbccr=LeukSurv$wbccr[j],tpicr=LeukSurv$tpicr[j]))$result$surv)
+  TIgroupe3<-c(TIgroupe3,res)
+}
+
+
+#------------------------------------------------------------------------------
+# General Hazard Model
+#------------------------------------------------------------------------------
+
+# Matrice de design
+X <- model.matrix(Surv(time=time2, event=cens) ~ agecr + sex + wbccr + tpicr,data=LeukSurv)[,-1]
+dim(X)
+XTD <- as.matrix(model.matrix(Surv(time=time2, event=cens) ~ agecr,data=LeukSurv)[,-1])
+
+mod_gen <- PGWMLE(rep(0, 3 + ncol(X) + ncol(XTD)),LeukSurv$time2,LeukSurv$cens, hstr = "PGWGH", des = X,des_t=XTD, method="nlminb",maxit=10000)
+mod_gen
+
+AICPGWGH <- 2*mod_gen$objective + 2*length(mod_gen$par)
+
+# Récupération des coefs :
+n <- length(LeukSurv$time2)
+p0 <- dim(XTD)[2]
+p1 <- dim(X)[2]
+coef <- mod_gen$par
+ae0 <- exp(coef[1]); be0 <- exp(coef[2]);  ce0 <- exp(coef[3])
+beta0 <- coef[4:(3+p0)]
+beta1 <- coef[(4+p0):(3+p0+p1)]
+
+exp.x.beta0 <- as.vector(exp(XTD%*%beta0))
+exp.x.beta1 <- as.vector(exp(X%*%beta1))
+exp.x.beta.dif <- as.vector(exp(X%*%beta1 - XTD%*%beta0))
+
+
+# La formule du taux cumulé : H(t) = H0(t exp(X*B1)*exp((X*B2 - X*B1))
+# Formule de la survie : S(t) = exp(-H(t))
+
+sfGH <- vector()
+predGH <- vector()
+for(i in 1:nrow(LeukSurv)){
+  predGH <- exp(-(chpgw(utimes*exp.x.beta0[i],ae0,be0,ce0)*exp.x.beta.dif[i]))
+  sfGH <- cbind(sfGH,predGH)
+}
+tsurvGH <- utimes
