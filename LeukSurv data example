@@ -17,46 +17,52 @@ head(LeukSurv)
 
 LeukSurv$time2 <- (LeukSurv$time / 365.24)
 
-#Temps horizon
+# Horizon time
 LeukSurv$TH6m <- ifelse(LeukSurv$time2<=0.5 & LeukSurv$cens==1,1,ifelse(LeukSurv$time2<=0.5 & LeukSurv$cens==0,NA,0))
 LeukSurv$TH3 <- ifelse(LeukSurv$time2<=3 & LeukSurv$cens==1,1,ifelse(LeukSurv$time2<=3 & LeukSurv$cens==0,NA,0))
 LeukSurv$TH8 <- ifelse(LeukSurv$time2<=8 & LeukSurv$cens==1,1,ifelse(LeukSurv$time2<=8 & LeukSurv$cens==0,NA,0))
 
 LeukSurv$time10 <- ifelse(LeukSurv$time2 > 10, 10 ,LeukSurv$time2 )
 LeukSurv$cens10 <- ifelse(LeukSurv$time2 > 10, 0 ,LeukSurv$cens )
-#LeukSurv$agecr <- (LeukSurv$age - 60.7) / 18.3
+
 LeukSurv$agecr <- scale(LeukSurv$age)
 LeukSurv$wbccr <- scale(LeukSurv$wbc)
 LeukSurv$tpicr <- scale(LeukSurv$tpi)
 
-
-# CATEGORISATION DES VARIABLES CONTINUES
-LeukSurv$agecl <- ifelse(LeukSurv$age<60,1,ifelse(LeukSurv$age >= 60 & LeukSurv$age<=80,2,3))
-#1 : "<60" - 2 : "60-80" - 3 : ">80"
-LeukSurv$wbccl <- ifelse(LeukSurv$wbc<=100,1,2) # je ne sais pas comment la catégoriser
-#1 : "<=100" - 2 : ">100"
-LeukSurv$tpicl <- ifelse(LeukSurv$tpi<0,1,2) # je ne sais pas comment la catégoriser
-#1 : "<0" - 2 : ">=0"
-
-#VERIF
-#AGECL
-summary(LeukSurv$age[LeukSurv$agecl==1])
-summary(LeukSurv$age[LeukSurv$agecl==2])
-summary(LeukSurv$age[LeukSurv$agecl==3])
-#WBC
-summary(LeukSurv$wbc[LeukSurv$wbccl==1])
-summary(LeukSurv$wbc[LeukSurv$wbccl==2])
-#TPI
-summary(LeukSurv$tpi[LeukSurv$tpicl==1])
-summary(LeukSurv$tpi[LeukSurv$tpicl==2])
-
-########   en commun   ################## 
+# UTILE ????
 Stime = LeukSurv$time2
 status = LeukSurv$cens
 utimes = unique(Stime)
 utimes = utimes[order(utimes)]
-#########################################
+
 # Mettre les temps dans l'ordre croissant
 ord <- order(Stime, -status)
 timeord <- Stime[ord]  
 statusord <- status[ord] 
+
+
+#------------------------------------------------------------------------------
+# Cox Model
+#------------------------------------------------------------------------------
+
+coxfit1 <- coxph(Surv(time2,cens) ~ agecr + sex + wbccr + tpicr,data=LeukSurv)
+summary(coxfit1)
+
+coxzph<-cox.zph(coxph(Surv(time2,cens) ~ agecr + sex + wbccr + tpicr,data=LeukSurv))
+par(mfrow=c(2,3))
+plot(coxzph)
+par(mfrow=c(1,1))
+
+#------- avec indice pronostique -------# #Cette étape permet d'avoir les prédicteur linéaires à pour chaque patient et chaque temps
+
+linpred <- LeukSurv$linpred <- coxfit1$linear.predictors
+coxfit1x <- coxph(Surv(LeukSurv$time2,LeukSurv$cens) ~ linpred)  
+sfcox <- survfit(coxfit1x, newdata = data.frame(x = linpred)) 
+sfcoxSurv <- sfcox$surv # matrice de survie COX
+sfcoxTime <- sfcox$time
+sfcoxSurv[1,1]
+indice <- which(sfcoxTime==min(sfcoxTime[sfcoxTime>=3]))
+pred3ans<- -sfcoxSurv[indice,]
+
+TIgroupe <-predict(coxfit1,type="risk")
+TIgroupe3 <- TIgroupe
