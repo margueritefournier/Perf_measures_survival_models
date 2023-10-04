@@ -145,3 +145,102 @@ for(i in 1:nrow(LeukSurv)){
   sfGH <- cbind(sfGH,predGH)
 }
 tsurvGH <- utimes
+
+
+
+
+
+
+
+############################################################## 
+#               Calibration at 6 months
+############################################################## 
+########
+# COX
+########
+indice<-which(sfcoxTime==min(sfcoxTime[sfcoxTime>=0.5]))[1]
+pred6COX<-1-sfcoxSurv[indice,]   # predict at 6 months
+names(pred6COX)<-c(1:length(pred6COX))
+pred6COX_sort <-sort(pred6COX)
+quantileCox6m<-quantile(pred6COX_sort,probs = seq(0.1,1,0.1))
+calibCOX6m <-calibQuantile(quantileCox6m,vecpred=pred6COX_sort,vecobs=LeukSurv$TH6m)
+########
+# BS
+########
+indiceBS<-which(sfbsTime==min(sfbsTime[sfbsTime>=0.5]))[1]
+pred6BS<-1-sfBS[indiceBS,]   # predict at 6 months
+names(pred6BS)<-c(1:length(pred6BS))
+pred6BS_sort <-sort(pred6BS)
+quantileBS6m<-quantile(pred6BS_sort,probs = seq(0.1,1,0.1))
+calibBS6m <-calibQuantile(quantileBS6m,vecpred=pred6BS_sort,vecobs=LeukSurv$TH6m)
+########
+# GH
+########
+indiceGH<-which(tsurvGH==min(tsurvGH[tsurvGH>=0.5]))[1]
+pred6GH<-1-sfGH[indiceGH,]   # predict at 6 months
+names(pred6GH)<-c(1:length(pred6GH))
+pred6GH_sort <-sort(pred6GH)
+quantileGH6m<-quantile(pred6GH_sort,probs = seq(0.1,1,0.1))
+calibGH6m <-calibQuantile(quantileGH6m,vecpred=pred6GH_sort,vecobs=LeukSurv$TH6m)
+
+############################################################## 
+#               Calibration at 3 years
+############################################################## 
+########
+# COX
+########
+indice<-which(sfcoxTime==min(sfcoxTime[sfcoxTime>=3]))[1]
+pred3COX<-1-sfcoxSurv[indice,]   # predict at 3 years
+names(pred3COX)<-c(1:length(pred3COX))
+pred3COX_sort <-sort(pred3COX)
+quantileCox3y<-quantile(pred3COX_sort,probs = seq(0.1,1,0.1))
+calibCOX3y <-calibQuantile(quantileCox3y,vecpred=pred3COX_sort,vecobs=LeukSurv$TH3)
+########
+# BS
+########
+indiceBS<-which(sfbsTime==min(sfbsTime[sfbsTime>=3]))[1]
+pred3BS<-1-sfBS[indiceBS,]       # predict at 3 years
+names(pred3BS)<-c(1:length(pred3BS))
+pred3BS_sort <-sort(pred3BS)
+quantileBS3y<-quantile(pred3BS_sort,probs = seq(0.1,1,0.1))
+calibBS3y <-calibQuantile(quantileBS3y,vecpred=pred3BS_sort,vecobs=LeukSurv$TH3)
+########
+# GH
+########
+indiceGH<-which(tsurvGH==min(tsurvGH[tsurvGH>=3]))[1]
+pred3GH<-1-sfGH[indiceGH,]       # predict at 3 years
+names(pred3GH)<-c(1:length(pred3GH))
+pred3GH_sort <-sort(pred3GH)
+quantileGH3y<-quantile(pred3GH_sort,probs = seq(0.1,1,0.1))
+calibGH3y <-calibQuantile(quantileGH3y,vecpred=pred3GH_sort,vecobs=LeukSurv$TH3)
+
+############################################################## 
+#               Calibration at 8 years
+############################################################## 
+########
+# COX
+########
+indice<-which(sfcoxTime==min(sfcoxTime[sfcoxTime>=8]))[1]
+pred8COX<-1-sfcoxSurv[indice,]   # predict at 8 years
+names(pred8COX)<-c(1:length(pred8COX))
+pred8COX_sort <-sort(pred8COX)
+quantileCox8y<-quantile(pred8COX_sort,probs = seq(0.1,1,0.1))
+calibCOX8y <-calibQuantile(quantileCox8y,vecpred=pred8COX_sort,vecobs=LeukSurv$TH8)
+########
+# BS
+########
+indiceBS<-which(sfbsTime==min(sfbsTime[sfbsTime>=8]))[1]
+pred8BS<-1-sfBS[indiceBS,]   # predict at 8 years
+names(pred8BS)<-c(1:length(pred8BS))
+pred8BS_sort <-sort(pred8BS)
+quantileBS8y<-quantile(pred8BS_sort,probs = seq(0.1,1,0.1))
+calibBS8y <-calibQuantile(quantileBS8y,vecpred=pred8BS_sort,vecobs=LeukSurv$TH8)
+########
+# GH
+########
+indiceGH<-which(tsurvGH==min(tsurvGH[tsurvGH>=8]))[1]
+pred8GH<-1-sfGH[indiceGH,]   # predict at 8 years
+names(pred8GH)<-c(1:length(pred8GH))
+pred8GH_sort <-sort(pred8GH)
+quantileGH8y<-quantile(pred8GH_sort,probs = seq(0.1,1,0.1))
+calibGH8y <-calibQuantile(quantileGH8y,vecpred=pred8GH_sort,vecobs=LeukSurv$TH8)
