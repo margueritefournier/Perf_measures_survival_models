@@ -285,8 +285,16 @@ legend("topright",legend=c("Cox model","Bspline-based model","General model"),co
 ######################################################################################
 #              AUC cumulative dynamic
 ######################################################################################
-KMreverse$surv <-  censcox[,1]
-myt=unique(LeukSurv$time2)
+
+#-----------------------------------------------------------------#
+# Construction de l'AUC
+#-----------------------------------------------------------------#
+
+
+KMreverse <- survfit(Surv(time2, 1-cens)~1,data= LeukSurv) #KM reverse 
+KMreverse$surv # probabilité d'être non censuré 
+summary(KMreverse,times=1.3)$surv # probabilité d'être non censuré au temps t
+
 
 
 
@@ -297,6 +305,7 @@ myt=unique(LeukSurv$time2)
 # ************************************************
 
 AUC.Cox<- rep(NA,length(myt))
+
 
 for (t in myt){
   
@@ -347,15 +356,18 @@ for (t in myt){
 
 # ************************************************
 #
-#   B-Spline MODEL
+# BSpline MODEL
 #
 # ************************************************
-# AUC numerator
+
+
+#Numérateur de l'AUC
+myt=unique(LeukSurv$time2)
 AUC.BS<- rep(NA,length(myt))
 
 for (t in myt){
 
-predict.all <- 1-predict(bsfit, time.pts= t, data.val = data.frame(age = LeukSurv$agecr,sex=LeukSurv$sex, wbc=LeukSurv$wbccr,tpi=LeukSurv$tpicr))$results$surv
+predict.all <- 1-sfBS[which(t==myt),]
 ScZ.all <- summary(KMreverse,times=LeukSurv$time2)$surv
 Sct <- summary(KMreverse,times=t)$surv
 
@@ -387,7 +399,7 @@ if (i == nrow(LeukSurv) & (ScZi*Sct)>0) {AUCij = sum(I1*I2*I3*di*(1/(ScZi*Sct)))
 
 # AUCnumerator
 
-# AUC denominator
+#Dénominateur de l'AUC
 KM <- survfit(Surv(time2, cens)~1, data=LeukSurv) #KM
 St <- summary(KM,times=t)$surv
 
@@ -398,7 +410,8 @@ AUC.BS[which(t==myt)] <- AUCnumerator/AUCdenom
 
 }
 
-plot(myt, AUC.BS, type="l")
+
+
 
 
 
@@ -409,10 +422,8 @@ plot(myt, AUC.BS, type="l")
 # GH MODEL
 #
 # ************************************************
-sfGH
-
-
 AUC.GH<- rep(NA,length(myt))
+
 for (t in myt){
   
   predict.all <- 1-sfGH[which(t==myt),]
