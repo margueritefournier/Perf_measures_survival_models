@@ -286,17 +286,11 @@ legend("topright",legend=c("Cox model","Bspline-based model","General model"),co
 #              AUC cumulative dynamic
 ######################################################################################
 
-#-----------------------------------------------------------------#
-# Construction de l'AUC
-#-----------------------------------------------------------------#
 
 
 KMreverse <- survfit(Surv(time2, 1-cens)~1,data= LeukSurv) #KM reverse 
 KMreverse$surv # probabilité d'être non censuré 
 summary(KMreverse,times=1.3)$surv # probabilité d'être non censuré au temps t
-
-
-
 
 # ************************************************
 #
@@ -412,11 +406,6 @@ AUC.BS[which(t==myt)] <- AUCnumerator/AUCdenom
 
 
 
-
-
-
-
-
 # ************************************************
 #
 # GH MODEL
@@ -481,7 +470,145 @@ legend("topleft",legend=c("Cox model","Bspline model","GH model"),lty=c(1,2,4))
 
 
 
+############################################################################################################################################################
+############################################################################################################################################################
 
+######################################################################################
+#              CALIBRATION Kaplan-Meier
+######################################################################################
+
+
+par(mfrow=c(2,2))
+#---------------------------------
+#  Variable AGE  
+#---------------------------------
+
+plot(0,0,col="white",xlim=c(0,8),ylim=c(0,1),xlab = "Time",ylab="Survival",main="Survival curves for different\nvalues of Age",cex.lab=1.5,cex.axis=1.5,cex.main=1.5)
+
+levAge<-1:3 # 1 : "<60" - 2 : "60-80" - 3 : ">80"
+for(L in levAge){
+
+  indAge <- which(LeukSurv$agecl==L)
+  survCoxAge<-vector()
+  survBSAge<-vector()
+  survGENAge<-vector()
+  for(i in 1:length(utimes)){
+    survCoxAge[i] <- mean(sfcoxSurv[i,indAge])  #Cox model
+    survBSAge[i] <- mean(sfBS[i,indAge])        #BS model
+    survGENAge[i] <- mean(sfGH[i,indAge])       #GH model
+
+  }
+  lines(utimes,survCoxAge,col=L+1,lty=1,lwd=2)
+  lines(utimes,survBSAge,col=L+1,lty=3,lwd=2)
+  lines(utimes,survGENAge,col=L+1,lty=6,lwd=2)
+  
+  
+  # Kaplan Meier
+  KMAge <- LeukSurv[LeukSurv$agecl==L,]
+  lines(survfit(Surv(KMAge$time10,KMAge$cens10)~1),data=KMAge,conf.int=FALSE,col="gray40",lty=1,lwd=2)
+}
+
+legend("topright",legend=c("Kaplan-Meier","Cox model","Bspline_based model","General model"),lty=c(1,1,3,6),lwd=2,col=c("gray40",rep("black",3)),bty="n")
+legend(x=6,y=0.7,legend=c("<60","60/80",">80"),col=levAge+1,lty=1,title = "Age Levels",bty="n")
+
+
+#---------------------------------
+#  Variable Sex     
+#---------------------------------
+
+plot(0,0,col="white",xlim=c(0,8),ylim=c(0,1),xlab = "Time",ylab="Survival",main="Survival curves for different\nvalues of Sex",cex.lab=1.5,cex.axis=1.5,cex.main=1.5)
+
+levSex<-sort(unique(LeukSurv$sex)) # 0 : "Female" - 1 : "Male"
+for(L in levSex){
+
+  indSex <- which(LeukSurv$sex==L)
+  survCoxSex<-vector()
+  survBSSex<-vector()
+  survGENSex<-vector()
+  for(i in 1:length(utimes)){
+    survCoxSex[i] <- mean(sfcoxSurv[i,indSex])  #Cox model
+    survBSSex[i] <- mean(sfBS[i,indSex])        #BS model
+    survGENSex[i] <- mean(sfGH[i,indSex])       #GH model
+    
+  }
+  lines(utimes,survCoxSex,col=L+4,lty=1,lwd=2)
+  lines(utimes,survBSSex,col=L+4,lty=3,lwd=2)
+  lines(utimes,survGENSex,col=L+4,lty=6,lwd=2)
+  
+  
+  # Kaplan Meier
+  KMSex <- LeukSurv[LeukSurv$sex==L,]
+  lines(survfit(Surv(KMSex$time10,KMSex$cens10)~1),data=KMSex,conf.int=FALSE,col="gray40",lty=1,lwd=2)
+}
+
+
+legend("topright",legend=c("Kaplan-Meier","Cox model","Bspline_based model","General model"),lty=c(1,1,3,6),lwd=2,col=c("gray40",rep("black",3)),bty="n")
+legend("bottomleft",legend=c("Female","Male"),col=levSex+4,lty=1,title = "Sex Levels",bty="n")
+
+
+
+#---------------------------------
+#  Variable WBC   
+#---------------------------------
+plot(0,0,col="white",xlim=c(0,8),ylim=c(0,1),xlab = "Time",ylab="Survival",main="Survival curves for different\nvalues of WBC",cex.lab=1.5,cex.axis=1.5,cex.main=1.5)
+
+levWBC<-sort(unique(LeukSurv$wbccl))    # 1 : "<=100" - 2 : ">100"
+for(L in levWBC){
+ 
+  indWBC <- which(LeukSurv$wbccl==L)
+  survCoxWBC<-vector()
+  survBSWBC<-vector()
+  survGENWBC<-vector()
+  for(i in 1:length(utimes)){
+    survCoxWBC[i] <- mean(sfcoxSurv[i,indWBC])  #Cox model
+    survBSWBC[i] <- mean(sfBS[i,indWBC])        #BS model
+    survGENWBC[i] <- mean(sfGH[i,indWBC])       #GH model
+    
+  }
+  lines(utimes,survCoxWBC,col=L+10,lty=1,lwd=2)
+  lines(utimes,survBSWBC,col=L+10,lty=3,lwd=2)
+  lines(utimes,survGENWBC,col=L+10,lty=6,lwd=2)
+  
+  
+  # Kaplan Meier
+  KMWBC <- LeukSurv[LeukSurv$wbccl==L,]
+  lines(survfit(Surv(KMWBC$time10,KMWBC$cens10)~1),data=KMWBC,conf.int=FALSE,col="gray40",lty=1,lwd=2)
+}
+
+legend("topright",legend=c("Kaplan-Meier","Cox model","Bspline_based model","General model"),lty=c(1,1,3,6),lwd=2,col=c("gray40",rep("black",3)),bty="n")
+legend("bottomleft",legend=c("<=100",">100"),col=levWBC+10,lty=1,title = "WBC Levels",bty="n")
+
+
+#---------------------------------
+#  Variable TPI   
+#---------------------------------
+plot(0,0,col="white",xlim=c(0,8),ylim=c(0,1),xlab = "Time",ylab="Survival",main="Survival curves for different\nvalues of TDS",cex.lab=1.5,cex.axis=1.5,cex.main=1.5)
+
+levTPI<-sort(unique(LeukSurv$tpicl))    # 1 : "<=100" - 2 : ">100"
+for(L in levTPI){
+ 
+  indTPI <- which(LeukSurv$tpicl==L)
+  survCoxTPI<-vector()
+  survBSTPI<-vector()
+  survGENTPI<-vector()
+  for(i in 1:length(utimes)){
+    survCoxTPI[i] <- mean(sfcoxSurv[i,indTPI])  #Cox model
+    survBSTPI[i] <- mean(sfBS[i,indTPI])        #BS model
+    survGENTPI[i] <- mean(sfGH[i,indTPI])       #GH model
+    
+  }
+  lines(utimes,survCoxTPI,col=L+33,lty=1,lwd=2)
+  lines(utimes,survBSTPI,col=L+33,lty=3,lwd=2)
+  lines(utimes,survGENTPI,col=L+33,lty=6,lwd=2)
+  
+  
+  # Kaplan Meier
+  KMTPI <- LeukSurv[LeukSurv$tpicl==L,]
+  lines(survfit(Surv(KMTPI$time10,KMTPI$cens10)~1),data=KMTPI,conf.int=FALSE,col="gray40",lty=1,lwd=2)
+}
+
+legend("topright",legend=c("Kaplan-Meier","Cox model","Bspline_based model","General model"),lty=c(1,1,3,6),lwd=2,col=c("gray40",rep("black",3)),bty="n")
+legend("bottomleft",legend=c("<=100",">100"),col=levTPI+33,lty=1,title = "TDS Levels",bty="n")
 
 
 
