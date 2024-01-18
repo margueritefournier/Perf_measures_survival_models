@@ -248,6 +248,85 @@ calibGH8y <-calibQuantile(quantileGH8y,vecpred=pred8GH_sort,vecobs=LeukSurv$TH8)
 
 
 
+# PLOT en 9 figures pour 3 temps pour 3 modeles ! ? enregistrer sur la m?me fen?tre 
+
+par(mfrow=c(3,3))
+
+# 6 mois
+
+#COX
+plot(x=calibCOX6m[,1],y=calibCOX6m[,2],col="black",pch=20,cex=3,ylab="Observed risks at 6 months",xlab="Predicted risks at 6 months",main="Cox Model",xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmCOX6m<-lm(calibCOX6m[,2]~ calibCOX6m[,1])
+abline(lmCOX6m,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.1,0.9,paste("slope =",round(lmCOX6m$coefficients[2],3)),cex=2)
+#BS
+plot(x=calibBS6m[,1],y=calibBS6m[,2],col="black",pch=20,cex=3,ylab="Observed risks at 6 months",xlab="Predicted risks at 6 months",main="BS Model",xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmBS6m<-lm(calibBS6m[,2]~ calibBS6m[,1])
+abline(lmBS6m,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.1,0.9,paste("slope =",round(lmBS6m$coefficients[2],3)),cex=2)
+#GH
+plot(x=calibGH6m[,1],y=calibGH6m[,2],col="black",pch=20,cex=3,ylab="Observed risks at 6 months",xlab="Predicted risks at 6 months",main="GH Model",xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmGH6m<-lm(calibGH6m[,2]~ calibGH6m[,1])
+abline(lmGH6m,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.1,0.9,paste("slope =",round(lmGH6m$coefficients[2],3)),cex=2)
+
+
+# 3 years
+
+#COX
+plot(x=calibCOX3y[,1],y=calibCOX3y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 3 years",xlab="Predicted risks at 3 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmCOX3y<-lm(calibCOX3y[,2]~ calibCOX3y[,1])
+abline(lmCOX3y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmCOX3y$coefficients[2],3)),cex=2)
+#BS
+plot(x=calibBS3y[,1],y=calibBS3y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 3 years",xlab="Predicted risks at 3 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmBS3y<-lm(calibBS3y[,2]~ calibBS3y[,1])
+abline(lmBS3y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmBS3y$coefficients[2],3)),cex=2)
+#GH
+plot(x=calibGH3y[,1],y=calibGH3y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 3 years",xlab="Predicted risksat 3 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmGH3y<-lm(calibGH3y[,2]~ calibGH3y[,1])
+abline(lmGH3y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmGH3y$coefficients[2],3)),cex=2)
+
+
+# 8 years
+
+#COX
+plot(x=calibCOX8y[,1],y=calibCOX8y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 8 years",xlab="Predicted risks at 8 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmCOX8y<-lm(calibCOX8y[,2]~ calibCOX8y[,1])
+abline(lmCOX8y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmCOX8y$coefficients[2],3)),cex=2)
+#BS
+plot(x=calibBS8y[,1],y=calibBS8y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 8 years",xlab="Predicted risks at 8 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmBS8y<-lm(calibBS8y[,2]~ calibBS8y[,1])
+abline(lmBS8y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmBS8y$coefficients[2],3)),cex=2)
+#GH
+plot(x=calibGH8y[,1],y=calibGH8y[,2],col="black",pch=20,cex=3,ylab="Observed risks at 8 years",xlab="Predicted risks at 8 years" ,xlim=c(0,1),ylim=c(0,1),cex.lab=2,cex.axis=2,
+     cex.main=2,panel.first=abline(h=seq(0,1,by=0.1), v=seq(0,1,by=0.1), lty=8, col="grey"))
+lmGH8y<-lm(calibGH8y[,2]~ calibGH8y[,1])
+abline(lmGH8y,col="black",lwd=2)
+abline(a=0,b=1,col="grey",lwd=2,lty=2)
+text(0.2,0.9,paste("slope =",round(lmGH8y$coefficients[2],3)),cex=2)
+
+
 
 
 ######################################################################################
