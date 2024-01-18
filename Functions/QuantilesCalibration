@@ -1,0 +1,25 @@
+#------------------------------------------------------------------------------
+#       Fonction calibration by quantiles
+#------------------------------------------------------------------------------
+#
+#   quantiles : quantile vector of prediction
+#   vecpred : predicted risks' vector
+#   vecobs : observed risks' vector
+
+
+calibQuantile <- function(quantiles,vecpred,vecobs){
+  dfCalibration <- data.frame(row.names = c(1:length(quantiles)))
+  for(i in 1:length(quantiles)){
+    if(i==1){
+      indice <- as.numeric(names(vecpred[which(vecpred <= quantiles[i])]))
+      dfCalibration$observed[i] <- mean(vecobs[indice],na.rm=TRUE)
+      dfCalibration$predict[i] <- mean(vecpred[which(vecpred <= quantiles[i])])
+    }
+    else{
+      indice <- as.numeric(names(vecpred[which(vecpred > quantiles[i-1] & vecpred <= quantiles[i])]))
+      dfCalibration$observed[i] <- mean(vecobs[indice],na.rm=TRUE)
+      dfCalibration$predict[i] <- mean(vecpred[which(vecpred > quantiles[i-1] & vecpred <= quantiles[i])])
+    }   
+  }
+  return(dfCalibration)
+}
