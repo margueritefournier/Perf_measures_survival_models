@@ -287,7 +287,6 @@ legend("topright",legend=c("Cox model","Bspline-based model","General model"),co
 ######################################################################################
 
 
-
 KMreverse <- survfit(Surv(time2, 1-cens)~1,data= LeukSurv) #KM reverse 
 KMreverse$surv # probabilité d'être non censuré 
 summary(KMreverse,times=1.3)$surv # probabilité d'être non censuré au temps t
@@ -297,7 +296,7 @@ summary(KMreverse,times=1.3)$surv # probabilité d'être non censuré au temps t
 # COX MODEL
 #
 # ************************************************
-
+myt=unique(LeukSurv$time2)
 AUC.Cox<- rep(NA,length(myt))
 
 
@@ -347,16 +346,14 @@ for (t in myt){
   
 }
 
-
 # ************************************************
 #
 # BSpline MODEL
 #
 # ************************************************
 
-
 #Numérateur de l'AUC
-myt=unique(LeukSurv$time2)
+
 AUC.BS<- rep(NA,length(myt))
 
 for (t in myt){
@@ -403,8 +400,6 @@ AUCdenom <- St*(1-St)*(nrow(LeukSurv))^2
 AUC.BS[which(t==myt)] <- AUCnumerator/AUCdenom
 
 }
-
-
 
 # ************************************************
 #
